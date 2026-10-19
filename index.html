@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Device Audio Recorder</title>
+</head>
+<body>
+  <main class="card">
+    <h1>Device Audio Recorder</h1>
+    <p class="sub">Lossless WAV. Everything stays in your browser — nothing is uploaded.</p>
+
+    <section id="compat" class="compat" aria-label="Compatibility">
+      <strong id="compat-title"></strong>
+      <ul id="compat-details"></ul>
+    </section>
+
+    <div class="rec-row">
+      <button id="rec-btn" class="rec-btn" type="button">Record</button>
+      <div id="timer" class="timer" aria-label="Elapsed time">00:00:00</div>
+    </div>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+    <div id="alert" class="alert" role="alert" hidden>
+      <p id="alert-msg"></p>
+      <button id="retry-btn" type="button">Retry</button>
+    </div>
+    <ul id="warnings" class="warnings" aria-live="polite"></ul>
+
+    <div class="meters" aria-hidden="true">
+      <div class="meter"><span>L</span><div class="bar"><i id="m-l"></i></div></div>
+      <div class="meter"><span>R</span><div class="bar"><i id="m-r"></i></div></div>
+      <div class="meter mic-meter"><span>Mic</span><div class="bar"><i id="m-m"></i></div></div>
+    </div>
+
+    <section class="settings" aria-label="Settings">
+      <label>Source
+        <select id="source">
+          <option value="display">System / tab audio (screen share)</option>
+          <option value="input">Input device only (loopback, e.g. BlackHole)</option>
+        </select>
+      </label>
+      <label>Format
+        <select id="format">
+          <option value="float32">32-bit float WAV</option>
+          <option value="pcm24">24-bit PCM WAV</option>
+        </select>
+      </label>
+      <label id="mic-toggle-row" class="check"><input id="mic-on" type="checkbox" /> Include microphone</label>
+      <div id="mic-opts" hidden>
+        <label id="device-label">Microphone
+          <select id="device"></select>
+        </label>
+        <label id="mode-label">Mode
+          <select id="mode">
+            <option value="mixed">Mixed (one file)</option>
+            <option value="separate">Separate tracks (3-ch WAV: sysL, sysR, mic)</option>
+          </select>
+        </label>
+        <label id="proc-row" class="check"><input id="mic-proc" type="checkbox" checked /> Echo cancellation &amp; noise suppression</label>
+        <p id="hp-tip" class="tip">Tip: wear headphones while the microphone is on to avoid echo.</p>
+      </div>
+    </section>
+
+    <p class="consent">Only record audio you have the right to record. Get consent before recording other people.</p>
+
+    <section aria-label="Saved recordings">
+      <h2>Saved recordings</h2>
+      <ul id="library" class="library"></ul>
+      <p id="library-empty" class="muted">No recordings yet.</p>
+    </section>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
