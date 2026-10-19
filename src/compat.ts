@@ -15,8 +15,9 @@ export function detectCompat(): Compat {
   const nav = navigator as Nav;
   const ua = navigator.userAgent;
   const mobile =
-    nav.userAgentData?.mobile ??
-    (/Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+    !!nav.userAgentData?.mobile ||
+    /Android|iPhone|iPad|iPod|Mobile/i.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const platform = (nav.userAgentData?.platform || navigator.platform || ua).toLowerCase();
   const isWin = platform.includes('win');
   const isMac = platform.includes('mac');
@@ -61,17 +62,25 @@ export function detectCompat(): Compat {
       details: ['Windows: choose “Entire Screen” and tick “Also share system audio”.'],
     };
   }
-  if (isMac || isLinux) {
-    const os = isMac ? 'macOS' : 'Linux';
+  if (isMac) {
+    return {
+      ...base,
+      level: 'full',
+      title: 'Full system audio supported',
+      details: [
+        'macOS 14.2 or newer: choose “Entire Screen” and tick “Also share system audio”.',
+        'On older macOS only “Chrome Tab” + “Also share tab audio” works; for all device audio use a loopback driver (e.g. BlackHole) via Source → Input device.',
+      ],
+    };
+  }
+  if (isLinux) {
     return {
       ...base,
       level: 'tab',
       title: 'Tab audio only',
       details: [
-        `${os}: Chrome/Edge can share the audio of a browser tab. Whole-system audio is not offered by the browser here.`,
-        isMac
-          ? 'For all device audio: install a loopback driver (e.g. BlackHole), route output to it, then use Source → Input device.'
-          : 'For all device audio: select a “Monitor of …” input (PulseAudio/PipeWire) via Source → Input device.',
+        'Linux: Chrome/Edge can share the audio of a browser tab. Whole-system audio is not offered by the browser here.',
+        'For all device audio: select a “Monitor of …” input (PulseAudio/PipeWire) via Source → Input device.',
       ],
     };
   }

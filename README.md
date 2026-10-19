@@ -23,15 +23,15 @@ Use `localhost` or HTTPS (required for screen/audio capture APIs).
 | OS | Chrome / Edge (desktop) | Notes |
 |---|---|---|
 | Windows | **Full system audio** | Pick *Entire Screen* + tick *Also share system audio*. |
-| macOS | **Tab audio only** | The browser does not offer system audio. |
+| macOS 14.2+ | **Full system audio** | Pick *Entire Screen* + tick *Also share system audio* (verified working, incl. local apps like VLC). Older macOS: tab audio only. |
 | Linux | **Tab audio only** | Same. |
 | ChromeOS | Tab / system audio varies | Untested. |
 | Firefox, Safari | Not supported for share capture | No audio in `getDisplayMedia`. |
 | Mobile (any) | Not supported | Detected up front; Record is disabled. |
 
-### Getting *all* device audio on macOS / Linux
+### Getting *all* device audio on Linux (or older macOS)
 Set **Source → Input device only** and record from a loopback input:
-- **macOS:** install [BlackHole](https://github.com/ExistentialAudio/BlackHole), create a Multi-Output Device (speakers + BlackHole) in *Audio MIDI Setup*, set it as output, then pick BlackHole as the input device.
+- **macOS (older than 14.2):** install [BlackHole](https://github.com/ExistentialAudio/BlackHole), create a Multi-Output Device (speakers + BlackHole) in *Audio MIDI Setup*, set it as output, then pick BlackHole as the input device.
 - **Linux (PulseAudio/PipeWire):** pick the “Monitor of <your output>” input.
 - **Windows** can use this too (e.g. “Stereo Mix” / VB-Cable) but doesn't need to.
 
