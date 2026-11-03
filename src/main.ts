@@ -125,6 +125,7 @@ function updateSettings(): void {
   hpTip.hidden = input;
   deviceLabel.firstChild!.textContent = input ? 'Input device ' : 'Microphone ';
   micMeterRow.classList.toggle('active', micOn.checked && !input);
+  document.body.dataset.state = state;
   const locked = state !== 'idle';
   [sourceSel, formatSel, micOn, deviceSel, modeSel, micProc].forEach((el) => (el.disabled = locked));
 }
@@ -228,6 +229,9 @@ async function start(): Promise<void> {
       bitDepth: formatSel.value as BitDepth,
       onLevels: drawLevels,
       onWarning: warn,
+      onSilenceStop: () => {
+        void stop('Stopped: no audio for 10 seconds.').then(announceStopped);
+      },
       onFatal: (msg) => {
         showAlert(msg);
         void stop();
@@ -256,6 +260,7 @@ async function start(): Promise<void> {
 async function stop(note?: string): Promise<void> {
   if (state !== 'recording' || !recorder) return;
   state = 'stopping';
+  document.body.dataset.state = state;
   clearInterval(timerId);
   recBtn.disabled = true;
   setStatus('Finishing and saving…');
@@ -296,6 +301,33 @@ window.addEventListener('beforeunload', (e) => {
   if (state === 'recording') e.preventDefault();
 });
 
+// Played to the user only (a separate context, never part of the recording).
+function announceStopped(): void {
+  try {
+    const ac = new AudioContext();
+    const t = ac.currentTime;
+    [880, 660].forEach((f, i) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.2, t + i * 0.2);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.2 + 0.18);
+      o.connect(g).connect(ac.destination);
+      o.start(t + i * 0.2);
+      o.stop(t + i * 0.2 + 0.2);
+    });
+    setTimeout(() => void ac.close().catch(() => {}), 800);
+  } catch {
+    /* optional */
+  }
+  try {
+    const u = new SpeechSynthesisUtterance('Recording stopped');
+    setTimeout(() => speechSynthesis.speak(u), 450);
+  } catch {
+    /* optional */
+  }
+}
+
 // ---------- meters ----------
 const levels = [0, 0, 0];
 function drawLevels(peaks: number[]): void {
@@ -322,6 +354,7 @@ async function renderLibrary(): Promise<void> {
     warn('Could not read saved recordings from browser storage.');
   }
   libEmpty.hidden = items.length > 0;
+  libEmpty.textContent = 'No recordings yet. Press Record to capture your first one.';
   libEl.replaceChildren(...items.map(libraryItem));
 }
 

@@ -12,10 +12,14 @@ export interface RecorderOptions {
   onLevels(peaks: number[]): void;
   onWarning(msg: string): void;
   onFatal(msg: string): void;
+  /** Called when nothing audible has arrived for SILENCE_STOP_SECONDS. */
+  onSilenceStop(): void;
 }
 
 const FLUSH_SECONDS = 2;
 const SILENCE_WARN_SECONDS = 5;
+const SILENCE_STOP_SECONDS = 10;
+const SILENCE_PEAK = 1e-4;
 
 interface Segment {
   id: string;
@@ -41,6 +45,10 @@ export class Recorder {
   private t0 = 0;
   private lastChunk = 0;
   private silentFrames = 0;
+  private receivedFrames = 0;
+  private audible = false;
+  private held: { bytes: Uint8Array; frames: number }[] = [];
+  private silenceStopped = false;
   private stalled = false;
   private failed = false;
   private watchdog = 0;
@@ -127,21 +135,39 @@ export class Recorder {
     const peaks = m.peaks ?? [0, 0, 0];
     this.o.onLevels(peaks);
 
-    if (peaks.every((p) => p < 1e-6)) {
+    this.receivedFrames += m.frames;
+    const rate = this.o.ctx.sampleRate;
+    const bytes = encodeSamples(m.data, this.o.bitDepth);
+
+    if (peaks.every((p) => p < SILENCE_PEAK)) {
+      const before = this.silentFrames;
       this.silentFrames += m.frames;
-      if (this.silentFrames / this.o.ctx.sampleRate > SILENCE_WARN_SECONDS && this.silentFrames - m.frames <= SILENCE_WARN_SECONDS * this.o.ctx.sampleRate) {
+      if (this.silentFrames / rate > SILENCE_WARN_SECONDS && before <= SILENCE_WARN_SECONDS * rate) {
         this.o.onWarning('No audio is being received (silence for 5 s+). Is anything playing? Check the share includes audio.');
       }
-    } else {
-      this.silentFrames = 0;
+      // Leading silence is dropped; later silence is held back so that, if it
+      // turns out to be the tail of the recording, it can be trimmed.
+      if (this.audible) this.held.push({ bytes, frames: m.frames });
+      if (this.silentFrames / rate >= SILENCE_STOP_SECONDS && !this.silenceStopped) {
+        this.silenceStopped = true;
+        this.o.onSilenceStop();
+      }
+      return;
     }
 
-    const bytes = encodeSamples(m.data, this.o.bitDepth);
+    this.silentFrames = 0;
+    this.audible = true;
+    for (const h of this.held) this.append(h.bytes, h.frames);
+    this.held = [];
+    this.append(bytes, m.frames);
+  }
+
+  private append(bytes: Uint8Array, frames: number): void {
     if (this.seg.bytes + this.pendingBytes + bytes.length > MAX_DATA_BYTES) this.rotate();
     this.parts.push(bytes);
     this.pendingBytes += bytes.length;
-    this.pendingFrames += m.frames;
-    this.totalFrames += m.frames;
+    this.pendingFrames += frames;
+    this.totalFrames += frames;
     if (this.pendingFrames >= FLUSH_SECONDS * this.o.ctx.sampleRate) this.flush();
   }
 
@@ -213,7 +239,7 @@ export class Recorder {
     });
 
     const expected = (this.o.ctx.currentTime - this.t0) * this.o.ctx.sampleRate;
-    const lost = (expected - this.totalFrames) / this.o.ctx.sampleRate;
+    const lost = (expected - this.receivedFrames) / this.o.ctx.sampleRate;
     if (lost > 0.5) this.o.onWarning(`Dropped audio detected: about ${lost.toFixed(1)} s is missing from the recording.`);
 
     this.sources.forEach((n) => n.disconnect());
