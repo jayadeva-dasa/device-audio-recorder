@@ -76,7 +76,7 @@
     <div class="col">
       <section class="panel" aria-label="Compare quality">
         <h2>Compare quality</h2>
-        <p class="muted">Pick a level, then hear the same voice sample as the original and as it would sound recorded at that level. Picking a level here also selects it for recording.</p>
+        <p class="muted">Pick a level, then hear the same voice sample as the original and as it would sound recorded at that level. Picking a WAV level here also selects it for recording; MP3 levels are download options.</p>
         <div id="cmp-presets" class="chips" role="radiogroup" aria-label="Quality level"></div>
         <div class="cmp-btns">
           <button id="cmp-orig" type="button">▶ Original</button>
@@ -111,7 +111,13 @@
     <div class="ed-actions">
       <button id="ed-play-sel" class="small" type="button">▶ Play selection</button>
       <span class="grow"></span>
-      <button id="ed-save" class="small" type="button">Save as new</button>
+      <button id="ed-save" class="small" type="button">Save as new (WAV)</button>
+      <select id="ed-format" class="small" aria-label="Download format">
+        <option value="wav">WAV · lossless</option>
+        <option value="320">MP3 · 320 kbps</option>
+        <option value="192">MP3 · 192 kbps</option>
+        <option value="128">MP3 · 128 kbps</option>
+      </select>
       <button id="ed-download" class="small primary" type="button">Download</button>
     </div>
   </dialog>

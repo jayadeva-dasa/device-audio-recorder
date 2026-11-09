@@ -5,7 +5,8 @@ import { deleteRecording, listRecordings, type SavedRecording } from './storage'
 import { parseDuration } from './duration';
 import { initCompare } from './compare';
 import { openEditor } from './editor';
-import { bytesPerMinute, fmtBytes, PRESETS, presetById } from './presets';
+import { downloadBlob, wavToMp3 } from './mp3';
+import { bytesPerMinute, fmtBytes, MP3_BITRATES, PRESETS, presetById } from './presets';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const recBtn = $<HTMLButtonElement>('rec-btn');
@@ -397,6 +398,42 @@ async function renderLibrary(): Promise<void> {
   libEl.replaceChildren(...items.map(libraryItem));
 }
 
+function openDownloadMenu(anchor: HTMLElement, r: SavedRecording): void {
+  document.querySelector('.menu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'menu';
+  const close = () => {
+    menu.remove();
+    document.removeEventListener('click', close);
+  };
+  const item = (label: string, bytes: number, run: (setLabel: (t: string) => void) => Promise<void>) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const text = `${label} · ~${fmtSize(bytes)}`;
+    b.textContent = text;
+    b.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      menu.querySelectorAll('button').forEach((x) => (x.disabled = true));
+      try {
+        await run((t) => (b.textContent = t));
+        close();
+      } catch (err) {
+        b.textContent = `Failed: ${err instanceof Error ? err.message : 'error'}`;
+      }
+    });
+    menu.append(b);
+  };
+  item('WAV · lossless', r.size, async () => downloadBlob(r.blob, r.name));
+  for (const kbps of MP3_BITRATES) {
+    item(`MP3 · ${kbps} kbps`, (kbps * 125) * r.duration, async (set) => {
+      const mp3 = await wavToMp3(r.blob, kbps, (f) => set(`Converting… ${Math.round(f * 100)}%`));
+      downloadBlob(mp3, r.name.replace(/\.wav$/i, '') + `-${kbps}k.mp3`);
+    });
+  }
+  anchor.parentElement!.append(menu);
+  setTimeout(() => document.addEventListener('click', close), 0);
+}
+
 const ICON = {
   play: '<path d="M8 5v14l11-7z"/>',
   edit: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
@@ -443,16 +480,11 @@ function libraryItem(r: SavedRecording): HTMLLIElement {
   const edit = iconBtn('edit', 'Trim / split');
   edit.addEventListener('click', () => void openEditor(r, () => void renderLibrary()));
 
-  const dl = iconBtn('download', 'Download') as unknown as HTMLElement;
-  const dlLink = document.createElement('a');
-  const url = URL.createObjectURL(r.blob);
-  urls.push(url);
-  dlLink.href = url;
-  dlLink.download = r.name;
-  dlLink.className = 'icon-btn';
-  dlLink.title = 'Download';
-  dlLink.setAttribute('aria-label', 'Download');
-  dlLink.innerHTML = dl.innerHTML;
+  const dl = iconBtn('download', 'Download');
+  dl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openDownloadMenu(dl, r);
+  });
 
   const del = iconBtn('trash', 'Delete');
   del.classList.add('danger');
@@ -462,7 +494,7 @@ function libraryItem(r: SavedRecording): HTMLLIElement {
     await renderLibrary();
   });
 
-  actions.append(play, edit, dlLink, del);
+  actions.append(play, edit, dl, del);
   li.append(info, actions);
   return li;
 }

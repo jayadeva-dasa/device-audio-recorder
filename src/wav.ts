@@ -122,3 +122,18 @@ export function parseWavHeader(b: Uint8Array): WavInfo | null {
   }
   return null;
 }
+
+/** Little-endian bytes -> interleaved Float32 samples in [-1, 1]. `buf` must start on a sample boundary. */
+export function decodeSamples(buf: ArrayBuffer, depth: BitDepth): Float32Array {
+  if (depth === 'float32') return new Float32Array(buf.slice(0, buf.byteLength - (buf.byteLength % 4)));
+  if (depth === 'pcm16') {
+    const i16 = new Int16Array(buf.slice(0, buf.byteLength - (buf.byteLength % 2)));
+    const out = new Float32Array(i16.length);
+    for (let i = 0; i < i16.length; i++) out[i] = i16[i] / 32768;
+    return out;
+  }
+  const u = new Uint8Array(buf);
+  const out = new Float32Array(Math.floor(u.length / 3));
+  for (let i = 0, o = 0; i < out.length; i++, o += 3) out[i] = ((((u[o] | (u[o + 1] << 8) | (u[o + 2] << 16)) << 8) >> 8)) / 8388608;
+  return out;
+}

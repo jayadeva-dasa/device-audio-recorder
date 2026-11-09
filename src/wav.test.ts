@@ -164,3 +164,38 @@ describe('editor helpers', () => {
     expect(formatClock(3723)).toBe('1:02:03.0');
   });
 });
+
+import { MP3_PRESETS } from './presets';
+import { decodeSamples } from './wav';
+describe('mp3 + decode', () => {
+  it('decodes what encodeSamples wrote', () => {
+    const x = new Float32Array([0, 0.5, -0.5, 0.999]);
+    for (const d of ['float32', 'pcm24', 'pcm16'] as const) {
+      const y = decodeSamples(encodeSamples(x, d).buffer as ArrayBuffer, d);
+      x.forEach((v, i) => expect(y[i]).toBeCloseTo(v, 3));
+    }
+  });
+  it('computes MP3 sizes from bitrate', () => {
+    const p = MP3_PRESETS.find((x) => x.kbps === 192)!;
+    expect(bytesPerMinute(p)).toBe(192 * 125 * 60);
+  });
+});
+
+import { wavToMp3 } from './mp3';
+describe('wavToMp3', () => {
+  it('produces a valid, smaller MP3 from a WAV blob', async () => {
+    const rate = 44100;
+    const n = rate * 2;
+    const s = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) s[2 * i] = s[2 * i + 1] = 0.5 * Math.sin((2 * Math.PI * 440 * i) / rate);
+    const body = encodeSamples(s, 'pcm24');
+    const wav = new Blob([buildWavHeader({ channels: 2, sampleRate: rate, bitDepth: 'pcm24' }, body.length) as BlobPart, body as BlobPart]);
+    const mp3 = await wavToMp3(wav, 128);
+    const b = new Uint8Array(await mp3.arrayBuffer());
+    expect(b[0]).toBe(0xff);
+    expect(b[1] & 0xe0).toBe(0xe0); // MPEG frame sync
+    expect(mp3.size).toBeGreaterThan(2 * 128 * 125 * 0.8);
+    expect(mp3.size).toBeLessThan(2 * 128 * 125 * 1.3);
+    expect(mp3.size).toBeLessThan(wav.size / 5);
+  });
+});

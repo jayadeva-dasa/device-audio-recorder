@@ -1,7 +1,16 @@
-import { bytesPerMinute, fmtBytes, PRESETS, presetById, quantize, type Preset } from './presets';
+import { encodeMp3Channels } from './mp3';
+import { bytesPerMinute, fmtBytes, MP3_PRESETS, PRESETS, presetById, quantize, type Preset } from './presets';
 
 /** The sample as it would sound if recorded with this preset. */
 export async function simulate(src: AudioBuffer, p: Preset): Promise<AudioBuffer> {
+  if (p.kbps) {
+    // Really encode to MP3 and decode it again, so you hear exactly what the file would sound like.
+    const l = src.getChannelData(0);
+    const r = src.numberOfChannels > 1 ? src.getChannelData(1) : undefined;
+    const mp3 = encodeMp3Channels(l, r, src.sampleRate, p.kbps);
+    const ctx = new OfflineAudioContext(src.numberOfChannels, 1, src.sampleRate);
+    return ctx.decodeAudioData(await mp3.arrayBuffer());
+  }
   const off = new OfflineAudioContext(p.channels, Math.ceil(src.duration * p.sampleRate), p.sampleRate);
   const node = off.createBufferSource();
   node.buffer = src;
@@ -29,9 +38,10 @@ export function initCompare(onSelect?: (id: string) => void): { select(id: strin
   let active: HTMLButtonElement | undefined;
 
   const label = (b: HTMLButtonElement) => (b === origBtn ? '▶ Original' : `▶ Recorded · ${presetById(current).name}`);
-  const maxBytes = Math.max(...PRESETS.map(bytesPerMinute));
+  const ALL = [...PRESETS, ...MP3_PRESETS];
+  const maxBytes = Math.max(...ALL.map(bytesPerMinute));
 
-  const chips = PRESETS.map((p) => {
+  const chips = ALL.map((p) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'chip';
@@ -40,7 +50,7 @@ export function initCompare(onSelect?: (id: string) => void): { select(id: strin
     b.innerHTML =
       '<span class="chip-name"></span><span class="chip-desc"></span><span class="chip-size"></span><span class="chip-bar"><i></i></span>';
     b.querySelector('.chip-name')!.textContent = p.name;
-    b.querySelector('.chip-desc')!.textContent = p.desc.replaceAll(' · ', ' · ');
+    b.querySelector('.chip-desc')!.textContent = p.desc;
     b.querySelector('.chip-size')!.textContent = `${fmtBytes(size)}/min`;
     b.querySelector<HTMLElement>('.chip-bar i')!.style.width = `${Math.max(6, (size / maxBytes) * 100)}%`;
     b.addEventListener('click', () => select(p.id, true));
@@ -61,11 +71,11 @@ export function initCompare(onSelect?: (id: string) => void): { select(id: strin
     stop();
     current = id;
     const p = presetById(id);
-    chips.forEach((c, i) => c.setAttribute('aria-checked', String(PRESETS[i].id === id)));
+    chips.forEach((c, i) => c.setAttribute('aria-checked', String(ALL[i].id === id)));
     testBtn.textContent = label(testBtn);
     const b = bytesPerMinute(p);
-    info.textContent = `${p.name} uses about ${fmtBytes(b)} per minute · ${fmtBytes(b * 60)} per hour.`;
-    if (user) onSelect?.(id);
+    info.textContent = `${p.name} uses about ${fmtBytes(b)} per minute · ${fmtBytes(b * 60)} per hour.${p.kbps ? ' MP3 is made when you download a recording; recording itself stays lossless WAV.' : ''}`;
+    if (user && !p.kbps) onSelect?.(id); // MP3 levels are export-only, not recording formats
   }
 
   async function play(btn: HTMLButtonElement, withPreset: boolean): Promise<void> {

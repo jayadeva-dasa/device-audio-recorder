@@ -59,6 +59,7 @@ select, button { font: inherit; }
 select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); width: 100%; font-weight: 400; }
 input[type='text'] { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); width: 100%; font: inherit; font-weight: 400; }
 input[type='text']:disabled { opacity: .55; }
+select.small { width: auto; padding: 7px 10px; border-radius: 9px; font-size: .85rem; }
 select:hover:not(:disabled) { border-color: var(--muted); }
 select:disabled, .settings label:has(:disabled) { opacity: .55; cursor: not-allowed; }
 .consent { font-size: .78rem; color: var(--muted); background: var(--card-2); border-radius: 10px; padding: 10px 12px; margin: 22px 0 0; }
@@ -68,7 +69,11 @@ select:disabled, .settings label:has(:disabled) { opacity: .55; cursor: not-allo
 .library .info { flex: 1 1 200px; min-width: 0; }
 .library .name { font-weight: 600; font-size: .92rem; word-break: break-all; }
 .library .meta { color: var(--muted); font-size: .78rem; margin-top: 1px; }
-.library .actions { display: flex; gap: 4px; }
+.library .actions { display: flex; gap: 4px; position: relative; }
+.menu { position: absolute; right: 0; top: 100%; z-index: 5; margin-top: 4px; min-width: 210px; display: grid; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+.menu button { text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--fg); font-size: .85rem; cursor: pointer; }
+.menu button:hover:not(:disabled) { background: var(--card-2); }
+.menu button:disabled { opacity: .6; cursor: progress; }
 .library audio { flex: 1 1 100%; width: 100%; }
 
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; text-decoration: none; transition: background .15s, color .15s, border-color .15s; }

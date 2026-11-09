@@ -9,6 +9,8 @@ export interface Preset {
   bitDepth: BitDepth;
   sampleRate: number;
   channels: 1 | 2;
+  /** Set for MP3 levels (bitrate in kbps); these are export/compare-only, not recording formats. */
+  kbps?: number;
 }
 
 export const PRESETS: Preset[] = [
@@ -19,9 +21,22 @@ export const PRESETS: Preset[] = [
   { id: 'voice', name: 'Voice', desc: '16-bit · 16 kHz · mono', bitDepth: 'pcm16', sampleRate: 16000, channels: 1 },
 ];
 
-export const presetById = (id: string): Preset => PRESETS.find((p) => p.id === id) ?? PRESETS[0];
+export const MP3_BITRATES = [320, 192, 128] as const;
+
+export const MP3_PRESETS: Preset[] = MP3_BITRATES.map((kbps) => ({
+  id: `mp3-${kbps}`,
+  name: `MP3 ${kbps}`,
+  desc: `MP3 · ${kbps} kbps · lossy`,
+  bitDepth: 'pcm16',
+  sampleRate: 44100,
+  channels: 2,
+  kbps,
+}));
+
+export const presetById = (id: string): Preset => [...PRESETS, ...MP3_PRESETS].find((p) => p.id === id) ?? PRESETS[0];
 
 export function bytesPerMinute(p: Preset): number {
+  if (p.kbps) return (p.kbps * 1000 * 60) / 8;
   return p.sampleRate * p.channels * bytesPerSample(p.bitDepth) * 60;
 }
 

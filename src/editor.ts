@@ -1,4 +1,5 @@
 import { formatClock, parseClock } from './duration';
+import { downloadBlob, wavToMp3 } from './mp3';
 import { fmtBytes } from './presets';
 import { saveRecording, type SavedRecording } from './storage';
 import { buildWavHeader, parseWavHeader, type WavInfo } from './wav';
@@ -176,15 +177,27 @@ export async function openEditor(rec: SavedRecording, onSaved: () => void): Prom
       audio.currentTime = start;
       void audio.play().catch(() => {});
     }],
-    [$('ed-download'), 'click', () => {
+    [$('ed-download'), 'click', async () => {
+      const fmt = $<HTMLSelectElement>('ed-format').value;
+      const btn = $<HTMLButtonElement>('ed-download');
       const { blob } = cut();
-      const a = document.createElement('a');
-      const u = URL.createObjectURL(blob);
-      a.href = u;
-      a.download = cutName();
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(u), 10000);
-      msg.textContent = `Downloaded ${a.download}`;
+      const name = cutName();
+      if (fmt === 'wav') {
+        downloadBlob(blob, name);
+        msg.textContent = `Downloaded ${name}`;
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const mp3 = await wavToMp3(blob, Number(fmt), (f) => (msg.textContent = `Converting to MP3… ${Math.round(f * 100)}%`));
+        const mp3Name = name.replace(/\.wav$/, '.mp3');
+        downloadBlob(mp3, mp3Name);
+        msg.textContent = `Downloaded ${mp3Name} (${fmtBytes(mp3.size)})`;
+      } catch (e) {
+        msg.textContent = `MP3 conversion failed: ${e instanceof Error ? e.message : 'unknown error'}`;
+      } finally {
+        btn.disabled = false;
+      }
     }],
     [$('ed-save'), 'click', async () => {
       const { blob, frames: n } = cut();
