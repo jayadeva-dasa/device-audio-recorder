@@ -25,6 +25,16 @@
           <div id="timer" class="timer" aria-label="Elapsed time">00:00:00</div>
         </div>
 
+        <div id="stopin" class="stopin" hidden>
+          <label class="stopin-add">Stop in
+            <input id="stopin-input" type="text" inputmode="numeric" placeholder="1:30" autocomplete="off" aria-label="Add time before stopping (mm:ss)" />
+            <button id="stopin-add" class="small" type="button">Add</button>
+          </label>
+          <div id="stopin-left" class="stopin-left" hidden>
+            <span>Stopping in <strong id="stopin-time">00:00</strong></span>
+            <button id="stopin-cancel" class="icon-btn" type="button" title="Cancel countdown" aria-label="Cancel countdown">✕</button>
+          </div>
+        </div>
         <div id="status" class="status" role="status" aria-live="polite"></div>
         <div id="alert" class="alert" role="alert" hidden>
           <p id="alert-msg"></p>

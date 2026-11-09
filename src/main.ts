@@ -35,6 +35,11 @@ const compare = initCompare((id) => {
     showFormatInfo();
   }
 });
+const stopInRow = $('stopin');
+const stopInInput = $<HTMLInputElement>('stopin-input');
+const stopInLeft = $('stopin-left');
+const stopInTime = $('stopin-time');
+let stopDeadline = 0; // performance.now() value at which to stop; 0 = none
 const limitIn = $<HTMLInputElement>('limit');
 const micOn = $<HTMLInputElement>('mic-on');
 const micOpts = $('mic-opts');
@@ -147,6 +152,7 @@ function updateSettings(): void {
   deviceLabel.firstChild!.textContent = input ? 'Input device ' : 'Microphone ';
   micMeterRow.classList.toggle('active', micOn.checked && !input);
   document.body.dataset.state = state;
+  stopInRow.hidden = state !== 'recording';
   const locked = state !== 'idle';
   [sourceSel, formatSel, limitIn, micOn, deviceSel, modeSel, micProc].forEach((el) => (el.disabled = locked));
 }
@@ -161,6 +167,30 @@ sourceSel.addEventListener('change', async () => {
 });
 navigator.mediaDevices?.addEventListener?.('devicechange', () => {
   if (!micOpts.hidden) void refreshDevices();
+});
+
+// ---------- stop-in countdown (set while recording) ----------
+function renderCountdown(): void {
+  const left = stopDeadline ? Math.max(0, Math.ceil((stopDeadline - performance.now()) / 1000)) : 0;
+  stopInLeft.hidden = !stopDeadline;
+  stopInTime.textContent = fmtTime(left).replace(/^00:/, '');
+}
+function addStopTime(): void {
+  const secs = parseDuration(stopInInput.value);
+  if (!secs) {
+    stopInInput.select();
+    return;
+  }
+  // Adds to a countdown that is already running; otherwise starts one now.
+  stopDeadline = (stopDeadline || performance.now()) + secs * 1000;
+  stopInInput.value = '';
+  renderCountdown();
+}
+$('stopin-add').addEventListener('click', addStopTime);
+stopInInput.addEventListener('keydown', (e) => e.key === 'Enter' && addStopTime());
+$('stopin-cancel').addEventListener('click', () => {
+  stopDeadline = 0;
+  renderCountdown();
 });
 
 // ---------- recording ----------
@@ -282,6 +312,11 @@ async function start(): Promise<void> {
       const t = rec.recordedSeconds;
       timerEl.textContent = fmtTime(t);
       if (state === 'recording') setStatus(t > 0 ? 'Recording…' : 'Waiting for audio to start…');
+      renderCountdown();
+      if (stopDeadline && performance.now() >= stopDeadline) {
+        stopDeadline = 0;
+        void stop('Stopped: countdown reached zero.').then(announceStopped);
+      }
     }, 250);
     setStatus('Waiting for audio to start…');
     try {
@@ -300,6 +335,8 @@ async function start(): Promise<void> {
 async function stop(note?: string): Promise<void> {
   if (state !== 'recording' || !recorder) return;
   state = 'stopping';
+  stopDeadline = 0;
+  renderCountdown();
   document.body.dataset.state = state;
   clearInterval(timerId);
   recBtn.disabled = true;

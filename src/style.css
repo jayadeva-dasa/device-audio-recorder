@@ -110,6 +110,12 @@ button.small.primary { background: var(--accent); border-color: var(--accent); c
 .ed-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 .grow { flex: 1; }
 
+.stopin { display: grid; justify-items: center; gap: 8px; margin: 8px 0; }
+.stopin-add { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--muted); font-weight: 600; }
+.stopin-add input { width: 90px; text-align: center; padding: 7px 10px; }
+.stopin-left { display: flex; align-items: center; gap: 4px; font-size: .95rem; padding: 4px 6px 4px 14px; border-radius: 999px; background: var(--accent-soft); }
+.stopin-left strong { font-variant-numeric: tabular-nums; font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+
 @keyframes blink { 50% { opacity: .25; } }
 @keyframes ring { to { box-shadow: 0 0 0 16px transparent; } 0% { box-shadow: 0 0 0 0 var(--accent-soft); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
