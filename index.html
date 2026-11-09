@@ -65,8 +65,15 @@
 
     <section aria-label="Compare quality">
       <h2>Compare quality</h2>
-      <p class="muted">Play the same sample as the original and as it would sound recorded at each quality level.</p>
-      <ul id="cmp-list" class="library cmp-list"></ul>
+      <p class="muted">Play a sample voice as the original, then as it would sound recorded at the quality you choose.</p>
+      <div class="settings cmp">
+        <label>Quality <select id="cmp-preset"></select></label>
+        <p id="cmp-info" class="tip"></p>
+        <div class="cmp-btns">
+          <button id="cmp-orig" type="button">▶ Original</button>
+          <button id="cmp-test" type="button">▶ Recorded</button>
+        </div>
+      </div>
     </section>
 
     <section aria-label="Saved recordings">
