@@ -68,6 +68,10 @@ select:disabled, .settings label:has(:disabled) { opacity: .55; cursor: not-allo
 .library button:last-child:hover { color: var(--accent); border-color: var(--accent); }
 .alert button { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+.cmp-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cmp-list button { min-width: 84px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; font-weight: 500; }
+.cmp-list button:hover { border-color: var(--muted); }
+
 @keyframes blink { 50% { opacity: .25; } }
 @keyframes ring { to { box-shadow: 0 0 0 16px transparent; } 0% { box-shadow: 0 0 0 0 var(--accent-soft); } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

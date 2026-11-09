@@ -1,4 +1,5 @@
 import { buildWavHeader, bytesPerSample, encodeSamples, MAX_DATA_BYTES, type BitDepth } from './wav';
+import { downmix } from './presets';
 import { discardChunks, finalizeRecording, putChunk, type SavedRecording } from './storage';
 
 export type Mode = 'system' | 'mixed' | 'separate';
@@ -9,6 +10,8 @@ export interface RecorderOptions {
   mic?: MediaStream;
   mode: Mode;
   bitDepth: BitDepth;
+  /** Fold stereo down to one channel (ignored in 'separate' mode). */
+  mono?: boolean;
   onLevels(peaks: number[]): void;
   onWarning(msg: string): void;
   onFatal(msg: string): void;
@@ -56,7 +59,7 @@ export class Recorder {
   private sources: AudioNode[] = [];
 
   constructor(private o: RecorderOptions) {
-    this.channels = o.mode === 'separate' ? 3 : 2;
+    this.channels = o.mode === 'separate' ? 3 : o.mono ? 1 : 2;
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, '0');
     this.baseName = `recording-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
@@ -137,7 +140,7 @@ export class Recorder {
 
     this.receivedFrames += m.frames;
     const rate = this.o.ctx.sampleRate;
-    const bytes = encodeSamples(m.data, this.o.bitDepth);
+    const bytes = encodeSamples(this.channels === 1 ? downmix(m.data) : m.data, this.o.bitDepth);
 
     if (peaks.every((p) => p < SILENCE_PEAK)) {
       const before = this.silentFrames;

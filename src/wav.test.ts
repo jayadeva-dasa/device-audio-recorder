@@ -87,3 +87,42 @@ describe('encodeSamples', () => {
     expect(s24(15)).toBe(Math.round(0.5 * 8388607));
   });
 });
+
+import { bytesPerMinute, downmix, PRESETS, quantize } from './presets';
+import { bytesPerSample } from './wav';
+
+describe('16-bit', () => {
+  it('encodes little-endian with clipping', () => {
+    const b = encodeSamples(new Float32Array([0, 1, -1, 2]), 'pcm16');
+    expect([...b]).toEqual([0, 0, 0xff, 0x7f, 0x00, 0x80, 0xff, 0x7f]);
+    expect(bytesPerSample('pcm16')).toBe(2);
+  });
+  it('writes a 16-bit PCM header', () => {
+    const h = buildWavHeader({ channels: 1, sampleRate: 16000, bitDepth: 'pcm16' }, 100);
+    const v = new DataView(h.buffer);
+    expect(v.getUint16(20, true)).toBe(1);
+    expect(v.getUint16(32, true)).toBe(2);
+    expect(v.getUint16(34, true)).toBe(16);
+  });
+});
+
+describe('presets', () => {
+  it('computes size per minute', () => {
+    const p = (id: string) => PRESETS.find((x) => x.id === id)!;
+    expect(bytesPerMinute(p('studio'))).toBe(48000 * 2 * 4 * 60);
+    expect(bytesPerMinute(p('voice'))).toBe(16000 * 2 * 60);
+  });
+  it('gets smaller from best to smallest', () => {
+    const sizes = PRESETS.map(bytesPerMinute);
+    expect([...sizes].sort((a, b) => b - a)).toEqual(sizes);
+  });
+  it('downmixes stereo to mono', () => {
+    expect([...downmix(new Float32Array([1, 0, 0.5, 0.5]))]).toEqual([0.5, 0.5]);
+  });
+  it('quantizes to the bit depth', () => {
+    const x = new Float32Array([0.123456789]);
+    expect(quantize(x, 'float32')[0]).toBe(x[0]);
+    expect(Math.abs(quantize(x, 'pcm16')[0] - x[0])).toBeLessThan(1 / 0x7fff);
+    expect(quantize(x, 'pcm16')[0]).not.toBe(x[0]);
+  });
+});

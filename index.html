@@ -41,11 +41,9 @@
           <option value="input">Input device only (loopback, e.g. BlackHole)</option>
         </select>
       </label>
-      <label>Format
-        <select id="format">
-          <option value="float32">32-bit float WAV</option>
-          <option value="pcm24">24-bit PCM WAV</option>
-        </select>
+      <label>Quality
+        <select id="format"></select>
+        <span id="format-info" class="tip"></span>
       </label>
       <label id="mic-toggle-row" class="check"><input id="mic-on" type="checkbox" /> Include microphone</label>
       <div id="mic-opts" hidden>
@@ -64,6 +62,12 @@
     </section>
 
     <p class="consent">Only record audio you have the right to record. Get consent before recording other people.</p>
+
+    <section aria-label="Compare quality">
+      <h2>Compare quality</h2>
+      <p class="muted">Play the same sample as the original and as it would sound recorded at each quality level.</p>
+      <ul id="cmp-list" class="library cmp-list"></ul>
+    </section>
 
     <section aria-label="Saved recordings">
       <h2>Saved recordings</h2>

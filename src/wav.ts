@@ -1,4 +1,4 @@
-export type BitDepth = 'float32' | 'pcm24';
+export type BitDepth = 'float32' | 'pcm24' | 'pcm16';
 
 export interface WavFormat {
   channels: number;
@@ -12,7 +12,7 @@ export const MAX_DATA_BYTES = 0xffffffff - 4096;
 const GUID_TAIL = [0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71];
 
 export function bytesPerSample(depth: BitDepth): number {
-  return depth === 'float32' ? 4 : 3;
+  return depth === 'float32' ? 4 : depth === 'pcm24' ? 3 : 2;
 }
 
 /** >2 channels uses WAVE_FORMAT_EXTENSIBLE; float always carries a 'fact' chunk. */
@@ -66,6 +66,16 @@ export function encodeSamples(samples: Float32Array, depth: BitDepth): Uint8Arra
   if (depth === 'float32') {
     // Copy so the caller's buffer can be reused; platform is little-endian in practice.
     return new Uint8Array(samples.slice().buffer);
+  }
+  if (depth === 'pcm16') {
+    const out16 = new Uint8Array(samples.length * 2);
+    for (let i = 0, o = 0; i < samples.length; i++, o += 2) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      const n = Math.round(s < 0 ? s * 0x8000 : s * 0x7fff);
+      out16[o] = n & 0xff;
+      out16[o + 1] = (n >> 8) & 0xff;
+    }
+    return out16;
   }
   const out = new Uint8Array(samples.length * 3);
   for (let i = 0, o = 0; i < samples.length; i++, o += 3) {

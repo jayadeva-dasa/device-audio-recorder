@@ -2,7 +2,8 @@ import './style.css';
 import { detectCompat } from './compat';
 import { Recorder, type Mode } from './recorder';
 import { deleteRecording, listRecordings, type SavedRecording } from './storage';
-import type { BitDepth } from './wav';
+import { initCompare } from './compare';
+import { bytesPerMinute, fmtBytes, PRESETS, presetById } from './presets';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const recBtn = $<HTMLButtonElement>('rec-btn');
@@ -14,6 +15,15 @@ const retryBtn = $<HTMLButtonElement>('retry-btn');
 const warningsEl = $('warnings');
 const sourceSel = $<HTMLSelectElement>('source');
 const formatSel = $<HTMLSelectElement>('format');
+formatSel.replaceChildren(...PRESETS.map((p) => new Option(`${p.name} — ${p.desc} (~${fmtBytes(bytesPerMinute(p))}/min)`, p.id)));
+const formatInfo = $('format-info');
+const showFormatInfo = () => {
+  const b = bytesPerMinute(presetById(formatSel.value));
+  formatInfo.textContent = `About ${fmtBytes(b)} per minute · ${fmtBytes(b * 60)} per hour`;
+};
+formatSel.addEventListener('change', showFormatInfo);
+showFormatInfo();
+initCompare();
 const micOn = $<HTMLInputElement>('mic-on');
 const micOpts = $('mic-opts');
 const micToggleRow = $('mic-toggle-row');
@@ -153,7 +163,7 @@ async function start(): Promise<void> {
   setStatus('Starting…');
 
   // Created inside the click gesture so it is allowed to run.
-  const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'playback' });
+  const ctx = new AudioContext({ sampleRate: presetById(formatSel.value).sampleRate, latencyHint: 'playback' });
   let system: MediaStream | undefined;
   let mic: MediaStream | undefined;
   const cleanup = () => {
@@ -161,6 +171,7 @@ async function start(): Promise<void> {
     mic?.getTracks().forEach((t) => t.stop());
     void ctx.close().catch(() => {});
     state = 'idle';
+    setStatus('');
     updateSettings();
   };
 
@@ -180,16 +191,6 @@ async function start(): Promise<void> {
         return cleanup();
       }
     } else {
-      if (wantMic) {
-        try {
-          mic = await navigator.mediaDevices.getUserMedia({
-            audio: { ...deviceId, echoCancellation: procOn, noiseSuppression: procOn, autoGainControl: false, channelCount: 1 },
-          });
-        } catch (e) {
-          showAlert(explain(e, 'mic'));
-          return cleanup();
-        }
-      }
       let display: MediaStream;
       try {
         display = await navigator.mediaDevices.getDisplayMedia({
@@ -215,6 +216,19 @@ async function start(): Promise<void> {
         );
         return cleanup();
       }
+      // Requested after the share picker: it needs the click's user activation,
+      // which a slow microphone permission prompt would let expire.
+      if (wantMic) {
+        try {
+          mic = await navigator.mediaDevices.getUserMedia({
+            audio: { ...deviceId, echoCancellation: procOn, noiseSuppression: procOn, autoGainControl: false, channelCount: 1 },
+          });
+        } catch (e) {
+          showAlert(explain(e, 'mic'));
+          display.getTracks().forEach((t) => t.stop());
+        return cleanup();
+        }
+      }
       system = new MediaStream(display.getAudioTracks());
       displayTrack = system.getAudioTracks()[0];
       displayTrack.addEventListener('ended', () => void stop('The share was stopped.'));
@@ -226,7 +240,8 @@ async function start(): Promise<void> {
       system,
       mic,
       mode,
-      bitDepth: formatSel.value as BitDepth,
+      bitDepth: presetById(formatSel.value).bitDepth,
+      mono: presetById(formatSel.value).channels === 1,
       onLevels: drawLevels,
       onWarning: warn,
       onSilenceStop: () => {
