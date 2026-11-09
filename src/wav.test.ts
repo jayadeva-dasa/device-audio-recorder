@@ -126,3 +126,18 @@ describe('presets', () => {
     expect(quantize(x, 'pcm16')[0]).not.toBe(x[0]);
   });
 });
+
+import { parseDuration } from './duration';
+describe('parseDuration', () => {
+  it('parses minutes, mm:ss and h:mm:ss', () => {
+    expect(parseDuration('30')).toBe(1800);
+    expect(parseDuration('23:15')).toBe(1395);
+    expect(parseDuration('1:05:00')).toBe(3900);
+    expect(parseDuration('  ')).toBe(0);
+  });
+  it('rejects junk', () => {
+    expect(parseDuration('abc')).toBeNull();
+    expect(parseDuration('1:2:3:4')).toBeNull();
+    expect(parseDuration('-5')).toBeNull();
+  });
+});

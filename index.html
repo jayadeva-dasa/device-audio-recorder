@@ -45,6 +45,10 @@
         <select id="format"></select>
         <span id="format-info" class="tip"></span>
       </label>
+      <label>Stop after (optional)
+        <input id="limit" type="text" inputmode="numeric" placeholder="e.g. 30:00 or 23:15 (mm:ss) — blank = no limit" autocomplete="off" />
+        <span class="tip">Counts only recorded audio — the silent wait before your audio starts is not included.</span>
+      </label>
       <label id="mic-toggle-row" class="check"><input id="mic-on" type="checkbox" /> Include microphone</label>
       <div id="mic-opts" hidden>
         <label id="device-label">Microphone

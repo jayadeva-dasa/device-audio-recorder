@@ -53,6 +53,8 @@ h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: 
 .tip { margin: 0; font-size: .82rem; }
 select, button { font: inherit; }
 select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); width: 100%; font-weight: 400; }
+input[type='text'] { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--fg); width: 100%; font: inherit; font-weight: 400; }
+input[type='text']:disabled { opacity: .55; }
 select:hover:not(:disabled) { border-color: var(--muted); }
 select:disabled, .settings label:has(:disabled) { opacity: .55; cursor: not-allowed; }
 .consent { font-size: .78rem; color: var(--muted); background: var(--card-2); border-radius: 10px; padding: 10px 12px; margin: 22px 0 0; }

@@ -2,6 +2,7 @@ import './style.css';
 import { detectCompat } from './compat';
 import { Recorder, type Mode } from './recorder';
 import { deleteRecording, listRecordings, type SavedRecording } from './storage';
+import { parseDuration } from './duration';
 import { initCompare } from './compare';
 import { bytesPerMinute, fmtBytes, PRESETS, presetById } from './presets';
 
@@ -24,6 +25,7 @@ const showFormatInfo = () => {
 formatSel.addEventListener('change', showFormatInfo);
 showFormatInfo();
 initCompare();
+const limitIn = $<HTMLInputElement>('limit');
 const micOn = $<HTMLInputElement>('mic-on');
 const micOpts = $('mic-opts');
 const micToggleRow = $('mic-toggle-row');
@@ -40,7 +42,6 @@ const micMeterRow = meters[2].closest('.meter')!;
 type State = 'idle' | 'starting' | 'recording' | 'stopping';
 let state: State = 'idle';
 let recorder: Recorder | null = null;
-let startedAt = 0;
 let timerId = 0;
 let wakeLock: WakeLockSentinel | null = null;
 let displayTrack: MediaStreamTrack | null = null;
@@ -137,7 +138,7 @@ function updateSettings(): void {
   micMeterRow.classList.toggle('active', micOn.checked && !input);
   document.body.dataset.state = state;
   const locked = state !== 'idle';
-  [sourceSel, formatSel, micOn, deviceSel, modeSel, micProc].forEach((el) => (el.disabled = locked));
+  [sourceSel, formatSel, limitIn, micOn, deviceSel, modeSel, micProc].forEach((el) => (el.disabled = locked));
 }
 
 micOn.addEventListener('change', async () => {
@@ -155,6 +156,11 @@ navigator.mediaDevices?.addEventListener?.('devicechange', () => {
 // ---------- recording ----------
 async function start(): Promise<void> {
   if (state !== 'idle') return;
+  const maxSeconds = parseDuration(limitIn.value);
+  if (maxSeconds === null) {
+    showAlert('Stop after: use minutes (30), mm:ss (23:15) or h:mm:ss (1:05:00), or leave blank.');
+    return;
+  }
   state = 'starting';
   clearAlert();
   warningsEl.replaceChildren();
@@ -242,6 +248,10 @@ async function start(): Promise<void> {
       mode,
       bitDepth: presetById(formatSel.value).bitDepth,
       mono: presetById(formatSel.value).channels === 1,
+      maxSeconds,
+      onLimit: () => {
+        void stop('Stopped: reached the time limit.').then(announceStopped);
+      },
       onLevels: drawLevels,
       onWarning: warn,
       onSilenceStop: () => {
@@ -256,9 +266,14 @@ async function start(): Promise<void> {
     state = 'recording';
     recBtn.textContent = 'Stop';
     recBtn.classList.add('on');
-    startedAt = performance.now();
-    timerId = window.setInterval(() => (timerEl.textContent = fmtTime((performance.now() - startedAt) / 1000)), 250);
-    setStatus('Recording…');
+    // The timer shows audio actually kept, so the silent wait before audio starts isn't counted.
+    const rec = recorder;
+    timerId = window.setInterval(() => {
+      const t = rec.recordedSeconds;
+      timerEl.textContent = fmtTime(t);
+      if (state === 'recording') setStatus(t > 0 ? 'Recording…' : 'Waiting for audio to start…');
+    }, 250);
+    setStatus('Waiting for audio to start…');
     try {
       wakeLock = (await navigator.wakeLock?.request('screen')) ?? null;
     } catch {

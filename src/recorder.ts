@@ -12,6 +12,9 @@ export interface RecorderOptions {
   bitDepth: BitDepth;
   /** Fold stereo down to one channel (ignored in 'separate' mode). */
   mono?: boolean;
+  /** Stop once this many seconds of recorded audio (not counting trimmed leading silence) exist. 0/undefined = no limit. */
+  maxSeconds?: number;
+  onLimit?(): void;
   onLevels(peaks: number[]): void;
   onWarning(msg: string): void;
   onFatal(msg: string): void;
@@ -52,6 +55,7 @@ export class Recorder {
   private audible = false;
   private held: { bytes: Uint8Array; frames: number }[] = [];
   private silenceStopped = false;
+  private limitHit = false;
   private stalled = false;
   private failed = false;
   private watchdog = 0;
@@ -132,7 +136,7 @@ export class Recorder {
   }
 
   private onChunk(m: { data?: Float32Array; frames?: number; peaks?: number[]; done?: boolean }): void {
-    if (m.done || !m.data || !m.frames || this.failed) return;
+    if (m.done || !m.data || !m.frames || this.failed || this.limitHit) return;
     this.lastChunk = performance.now();
     this.stalled = false;
     const peaks = m.peaks ?? [0, 0, 0];
@@ -166,12 +170,24 @@ export class Recorder {
   }
 
   private append(bytes: Uint8Array, frames: number): void {
+    if (this.limitHit) return;
+    let hit = false;
+    if (this.o.maxSeconds) {
+      const room = Math.round(this.o.maxSeconds * this.o.ctx.sampleRate) - this.totalFrames;
+      if (frames >= room) {
+        frames = Math.max(0, room);
+        bytes = bytes.subarray(0, frames * this.bytesPerFrame);
+        hit = true;
+        this.limitHit = true;
+      }
+    }
     if (this.seg.bytes + this.pendingBytes + bytes.length > MAX_DATA_BYTES) this.rotate();
     this.parts.push(bytes);
     this.pendingBytes += bytes.length;
     this.pendingFrames += frames;
     this.totalFrames += frames;
     if (this.pendingFrames >= FLUSH_SECONDS * this.o.ctx.sampleRate) this.flush();
+    if (hit) this.o.onLimit?.();
   }
 
   /** Queue pending parts to IndexedDB for the current segment. */
@@ -260,6 +276,11 @@ export class Recorder {
     await this.chain;
     const results = await Promise.allSettled(this.finished);
     return results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+  }
+
+  /** Seconds of audio actually kept so far (excludes leading silence). */
+  get recordedSeconds(): number {
+    return this.totalFrames / this.o.ctx.sampleRate;
   }
 
   get bytesPerFrame(): number {
