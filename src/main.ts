@@ -4,6 +4,7 @@ import { Recorder, type Mode } from './recorder';
 import { deleteRecording, listRecordings, type SavedRecording } from './storage';
 import { parseDuration } from './duration';
 import { initCompare } from './compare';
+import { openEditor } from './editor';
 import { bytesPerMinute, fmtBytes, PRESETS, presetById } from './presets';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -22,9 +23,17 @@ const showFormatInfo = () => {
   const b = bytesPerMinute(presetById(formatSel.value));
   formatInfo.textContent = `About ${fmtBytes(b)} per minute · ${fmtBytes(b * 60)} per hour`;
 };
-formatSel.addEventListener('change', showFormatInfo);
+formatSel.addEventListener('change', () => {
+  showFormatInfo();
+  compare?.select(formatSel.value);
+});
 showFormatInfo();
-initCompare();
+const compare = initCompare((id) => {
+  if (state === 'idle') {
+    formatSel.value = id;
+    showFormatInfo();
+  }
+});
 const limitIn = $<HTMLInputElement>('limit');
 const micOn = $<HTMLInputElement>('mic-on');
 const micOpts = $('mic-opts');
@@ -388,19 +397,37 @@ async function renderLibrary(): Promise<void> {
   libEl.replaceChildren(...items.map(libraryItem));
 }
 
+const ICON = {
+  play: '<path d="M8 5v14l11-7z"/>',
+  edit: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/>',
+  download: '<path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+};
+function iconBtn(kind: keyof typeof ICON, label: string): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'icon-btn';
+  b.title = label;
+  b.setAttribute('aria-label', label);
+  b.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="${kind === 'play' ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[kind]}</svg>`;
+  return b;
+}
+
 function libraryItem(r: SavedRecording): HTMLLIElement {
   const li = document.createElement('li');
+  const info = document.createElement('div');
+  info.className = 'info';
   const name = document.createElement('div');
   name.className = 'name';
   name.textContent = r.name;
   const meta = document.createElement('div');
   meta.className = 'meta';
   meta.textContent = `${fmtTime(r.duration)} · ${fmtSize(r.size)} · ${r.channels} ch · ${new Date(r.createdAt).toLocaleString()}`;
+  info.append(name, meta);
   const actions = document.createElement('div');
   actions.className = 'actions';
 
-  const play = document.createElement('button');
-  play.textContent = 'Play';
+  const play = iconBtn('play', 'Play');
   play.addEventListener('click', () => {
     const existing = li.querySelector('audio');
     if (existing) return existing.remove();
@@ -413,23 +440,30 @@ function libraryItem(r: SavedRecording): HTMLLIElement {
     void a.play().catch(() => {});
   });
 
-  const dl = document.createElement('a');
+  const edit = iconBtn('edit', 'Trim / split');
+  edit.addEventListener('click', () => void openEditor(r, () => void renderLibrary()));
+
+  const dl = iconBtn('download', 'Download') as unknown as HTMLElement;
+  const dlLink = document.createElement('a');
   const url = URL.createObjectURL(r.blob);
   urls.push(url);
-  dl.href = url;
-  dl.download = r.name;
-  dl.textContent = 'Download';
+  dlLink.href = url;
+  dlLink.download = r.name;
+  dlLink.className = 'icon-btn';
+  dlLink.title = 'Download';
+  dlLink.setAttribute('aria-label', 'Download');
+  dlLink.innerHTML = dl.innerHTML;
 
-  const del = document.createElement('button');
-  del.textContent = 'Delete';
+  const del = iconBtn('trash', 'Delete');
+  del.classList.add('danger');
   del.addEventListener('click', async () => {
     if (!confirm(`Delete ${r.name}?`)) return;
     await deleteRecording(r.id);
     await renderLibrary();
   });
 
-  actions.append(play, dl, del);
-  li.append(name, meta, actions);
+  actions.append(play, edit, dlLink, del);
+  li.append(info, actions);
   return li;
 }
 

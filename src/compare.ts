@@ -14,36 +14,59 @@ export async function simulate(src: AudioBuffer, p: Preset): Promise<AudioBuffer
   return out;
 }
 
-export function initCompare(): void {
+export function initCompare(onSelect?: (id: string) => void): { select(id: string): void } {
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-  const presetSel = $<HTMLSelectElement>('cmp-preset');
+  const chipsEl = $('cmp-presets');
   const info = $('cmp-info');
   const origBtn = $<HTMLButtonElement>('cmp-orig');
   const testBtn = $<HTMLButtonElement>('cmp-test');
 
-  presetSel.replaceChildren(...PRESETS.map((p) => new Option(`${p.name} — ${p.desc}`, p.id)));
-
+  let current = PRESETS[0].id;
   let ctx: AudioContext | undefined;
   let sample: Promise<AudioBuffer> | undefined;
   const cache = new Map<string, AudioBuffer>();
   let playing: AudioBufferSourceNode | undefined;
   let active: HTMLButtonElement | undefined;
-  const labels = new Map([[origBtn, origBtn.textContent ?? ''], [testBtn, testBtn.textContent ?? '']]);
+
+  const label = (b: HTMLButtonElement) => (b === origBtn ? '▶ Original' : `▶ Recorded · ${presetById(current).name}`);
+  const maxBytes = Math.max(...PRESETS.map(bytesPerMinute));
+
+  const chips = PRESETS.map((p) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.setAttribute('role', 'radio');
+    const size = bytesPerMinute(p);
+    b.innerHTML =
+      '<span class="chip-name"></span><span class="chip-desc"></span><span class="chip-size"></span><span class="chip-bar"><i></i></span>';
+    b.querySelector('.chip-name')!.textContent = p.name;
+    b.querySelector('.chip-desc')!.textContent = p.desc.replaceAll(' · ', ' · ');
+    b.querySelector('.chip-size')!.textContent = `${fmtBytes(size)}/min`;
+    b.querySelector<HTMLElement>('.chip-bar i')!.style.width = `${Math.max(6, (size / maxBytes) * 100)}%`;
+    b.addEventListener('click', () => select(p.id, true));
+    chipsEl.append(b);
+    return b;
+  });
 
   const stop = () => {
     if (playing) {
       playing.onended = null;
       try { playing.stop(); } catch { /* already stopped */ }
     }
-    if (active) active.textContent = labels.get(active) ?? '';
+    if (active) active.textContent = label(active);
     playing = active = undefined;
   };
 
-  const refreshInfo = () => {
-    const p = presetById(presetSel.value);
+  function select(id: string, user = false): void {
+    stop();
+    current = id;
+    const p = presetById(id);
+    chips.forEach((c, i) => c.setAttribute('aria-checked', String(PRESETS[i].id === id)));
+    testBtn.textContent = label(testBtn);
     const b = bytesPerMinute(p);
-    info.textContent = `${p.name}: about ${fmtBytes(b)} per minute · ${fmtBytes(b * 60)} per hour`;
-  };
+    info.textContent = `${p.name} uses about ${fmtBytes(b)} per minute · ${fmtBytes(b * 60)} per hour.`;
+    if (user) onSelect?.(id);
+  }
 
   async function play(btn: HTMLButtonElement, withPreset: boolean): Promise<void> {
     const wasActive = active === btn;
@@ -57,7 +80,7 @@ export function initCompare(): void {
         .then((r) => r.arrayBuffer())
         .then((ab) => ctx!.decodeAudioData(ab));
       const src = await sample;
-      const key = withPreset ? presetSel.value : 'orig';
+      const key = withPreset ? current : 'orig';
       let buf = cache.get(key);
       if (!buf) {
         buf = withPreset ? await simulate(src, presetById(key)) : src;
@@ -73,16 +96,14 @@ export function initCompare(): void {
       btn.textContent = '■ Stop';
     } catch {
       sample = undefined;
-      btn.textContent = labels.get(btn) ?? '';
+      btn.textContent = label(btn);
       info.textContent = 'Could not load the sample audio.';
     }
   }
 
   origBtn.addEventListener('click', () => void play(origBtn, false));
   testBtn.addEventListener('click', () => void play(testBtn, true));
-  presetSel.addEventListener('change', () => {
-    stop();
-    refreshInfo();
-  });
-  refreshInfo();
+  origBtn.textContent = label(origBtn);
+  select(current);
+  return { select: (id) => select(id) };
 }

@@ -7,85 +7,114 @@
   <title>Device Audio Recorder</title>
 </head>
 <body>
-  <main class="card">
+  <header class="top">
     <h1>Device Audio Recorder</h1>
     <p class="sub">Lossless WAV. Everything stays in your browser — nothing is uploaded.</p>
+  </header>
 
-    <section id="compat" class="compat" aria-label="Compatibility">
-      <strong id="compat-title"></strong>
-      <ul id="compat-details"></ul>
-    </section>
+  <main class="layout">
+    <div class="col">
+      <section class="panel" aria-label="Recorder">
+        <section id="compat" class="compat" aria-label="Compatibility">
+          <strong id="compat-title"></strong>
+          <ul id="compat-details"></ul>
+        </section>
 
-    <div class="rec-row">
-      <button id="rec-btn" class="rec-btn" type="button">Record</button>
-      <div id="timer" class="timer" aria-label="Elapsed time">00:00:00</div>
+        <div class="rec-row">
+          <button id="rec-btn" class="rec-btn" type="button">Record</button>
+          <div id="timer" class="timer" aria-label="Elapsed time">00:00:00</div>
+        </div>
+
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+        <div id="alert" class="alert" role="alert" hidden>
+          <p id="alert-msg"></p>
+          <button id="retry-btn" type="button">Retry</button>
+        </div>
+        <ul id="warnings" class="warnings" aria-live="polite"></ul>
+
+        <div class="meters" aria-hidden="true">
+          <div class="meter"><span>L</span><div class="bar"><i id="m-l"></i></div></div>
+          <div class="meter"><span>R</span><div class="bar"><i id="m-r"></i></div></div>
+          <div class="meter mic-meter"><span>Mic</span><div class="bar"><i id="m-m"></i></div></div>
+        </div>
+
+        <section class="settings" aria-label="Settings">
+          <label>Source
+            <select id="source">
+              <option value="display">System / tab audio (screen share)</option>
+              <option value="input">Input device only (loopback, e.g. BlackHole)</option>
+            </select>
+          </label>
+          <label>Quality
+            <select id="format"></select>
+            <span id="format-info" class="tip"></span>
+          </label>
+          <label>Stop after (optional)
+            <input id="limit" type="text" inputmode="numeric" placeholder="e.g. 30:00 or 23:15 (mm:ss) — blank = no limit" autocomplete="off" />
+            <span class="tip">Counts only recorded audio — the silent wait before your audio starts is not included.</span>
+          </label>
+          <label id="mic-toggle-row" class="check"><input id="mic-on" type="checkbox" /> Include microphone</label>
+          <div id="mic-opts" hidden>
+            <label id="device-label">Microphone
+              <select id="device"></select>
+            </label>
+            <label id="mode-label">Mode
+              <select id="mode">
+                <option value="mixed">Mixed (one file)</option>
+                <option value="separate">Separate tracks (3-ch WAV: sysL, sysR, mic)</option>
+              </select>
+            </label>
+            <label id="proc-row" class="check"><input id="mic-proc" type="checkbox" checked /> Echo cancellation &amp; noise suppression</label>
+            <p id="hp-tip" class="tip">Tip: wear headphones while the microphone is on to avoid echo.</p>
+          </div>
+        </section>
+
+        <p class="consent">Only record audio you have the right to record. Get consent before recording other people.</p>
+      </section>
     </div>
 
-    <div id="status" class="status" role="status" aria-live="polite"></div>
-    <div id="alert" class="alert" role="alert" hidden>
-      <p id="alert-msg"></p>
-      <button id="retry-btn" type="button">Retry</button>
-    </div>
-    <ul id="warnings" class="warnings" aria-live="polite"></ul>
-
-    <div class="meters" aria-hidden="true">
-      <div class="meter"><span>L</span><div class="bar"><i id="m-l"></i></div></div>
-      <div class="meter"><span>R</span><div class="bar"><i id="m-r"></i></div></div>
-      <div class="meter mic-meter"><span>Mic</span><div class="bar"><i id="m-m"></i></div></div>
-    </div>
-
-    <section class="settings" aria-label="Settings">
-      <label>Source
-        <select id="source">
-          <option value="display">System / tab audio (screen share)</option>
-          <option value="input">Input device only (loopback, e.g. BlackHole)</option>
-        </select>
-      </label>
-      <label>Quality
-        <select id="format"></select>
-        <span id="format-info" class="tip"></span>
-      </label>
-      <label>Stop after (optional)
-        <input id="limit" type="text" inputmode="numeric" placeholder="e.g. 30:00 or 23:15 (mm:ss) — blank = no limit" autocomplete="off" />
-        <span class="tip">Counts only recorded audio — the silent wait before your audio starts is not included.</span>
-      </label>
-      <label id="mic-toggle-row" class="check"><input id="mic-on" type="checkbox" /> Include microphone</label>
-      <div id="mic-opts" hidden>
-        <label id="device-label">Microphone
-          <select id="device"></select>
-        </label>
-        <label id="mode-label">Mode
-          <select id="mode">
-            <option value="mixed">Mixed (one file)</option>
-            <option value="separate">Separate tracks (3-ch WAV: sysL, sysR, mic)</option>
-          </select>
-        </label>
-        <label id="proc-row" class="check"><input id="mic-proc" type="checkbox" checked /> Echo cancellation &amp; noise suppression</label>
-        <p id="hp-tip" class="tip">Tip: wear headphones while the microphone is on to avoid echo.</p>
-      </div>
-    </section>
-
-    <p class="consent">Only record audio you have the right to record. Get consent before recording other people.</p>
-
-    <section aria-label="Compare quality">
-      <h2>Compare quality</h2>
-      <p class="muted">Play a sample voice as the original, then as it would sound recorded at the quality you choose.</p>
-      <div class="settings cmp">
-        <label>Quality <select id="cmp-preset"></select></label>
-        <p id="cmp-info" class="tip"></p>
+    <div class="col">
+      <section class="panel" aria-label="Compare quality">
+        <h2>Compare quality</h2>
+        <p class="muted">Pick a level, then hear the same voice sample as the original and as it would sound recorded at that level. Picking a level here also selects it for recording.</p>
+        <div id="cmp-presets" class="chips" role="radiogroup" aria-label="Quality level"></div>
         <div class="cmp-btns">
           <button id="cmp-orig" type="button">▶ Original</button>
           <button id="cmp-test" type="button">▶ Recorded</button>
         </div>
-      </div>
-    </section>
+        <p id="cmp-info" class="tip"></p>
+      </section>
 
-    <section aria-label="Saved recordings">
-      <h2>Saved recordings</h2>
-      <ul id="library" class="library"></ul>
-      <p id="library-empty" class="muted">No recordings yet.</p>
-    </section>
+      <section class="panel" aria-label="Saved recordings">
+        <h2>Saved recordings</h2>
+        <ul id="library" class="library"></ul>
+        <p id="library-empty" class="muted">No recordings yet.</p>
+      </section>
+    </div>
   </main>
+
+  <dialog id="editor" class="editor" aria-labelledby="ed-title">
+    <div class="ed-head">
+      <h3 id="ed-title"></h3>
+      <button id="ed-close" class="icon-btn" type="button" aria-label="Close" title="Close" onclick="this.closest('dialog').close()">✕</button>
+    </div>
+    <p id="ed-msg" class="tip"></p>
+    <canvas id="ed-wave" class="wave"></canvas>
+    <audio id="ed-audio" controls preload="auto"></audio>
+    <div class="ed-grid">
+      <label>Start <input id="ed-start" type="text" autocomplete="off" /></label>
+      <button id="ed-set-start" class="small" type="button">Set start here</button>
+      <label>End <input id="ed-end" type="text" autocomplete="off" /></label>
+      <button id="ed-set-end" class="small" type="button">Set end here</button>
+    </div>
+    <p id="ed-info" class="tip"></p>
+    <div class="ed-actions">
+      <button id="ed-play-sel" class="small" type="button">▶ Play selection</button>
+      <span class="grow"></span>
+      <button id="ed-save" class="small" type="button">Save as new</button>
+      <button id="ed-download" class="small primary" type="button">Download</button>
+    </div>
+  </dialog>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

@@ -141,3 +141,26 @@ describe('parseDuration', () => {
     expect(parseDuration('-5')).toBeNull();
   });
 });
+
+import { formatClock, parseClock } from './duration';
+import { parseWavHeader } from './wav';
+describe('editor helpers', () => {
+  it('parses our own headers back', () => {
+    for (const bitDepth of ['float32', 'pcm24', 'pcm16'] as const) {
+      for (const channels of [1, 2, 3]) {
+        const fmt = { channels, sampleRate: 44100, bitDepth };
+        const h = buildWavHeader(fmt, 1200);
+        const info = parseWavHeader(h)!;
+        expect(info).toMatchObject({ ...fmt, dataBytes: 1200, dataOffset: h.length });
+      }
+    }
+  });
+  it('parses and formats clocks', () => {
+    expect(parseClock('1:23.5')).toBe(83.5);
+    expect(parseClock('83')).toBe(83);
+    expect(parseClock('1:02:03')).toBe(3723);
+    expect(parseClock('x')).toBeNull();
+    expect(formatClock(83.5)).toBe('1:23.5');
+    expect(formatClock(3723)).toBe('1:02:03.0');
+  });
+});

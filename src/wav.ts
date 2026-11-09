@@ -87,3 +87,38 @@ export function encodeSamples(samples: Float32Array, depth: BitDepth): Uint8Arra
   }
   return out;
 }
+
+export interface WavInfo extends WavFormat {
+  dataOffset: number;
+  dataBytes: number;
+  blockAlign: number;
+}
+
+/** Read the format and data location from the first bytes of a WAV we wrote (16/24-bit PCM or 32-bit float). */
+export function parseWavHeader(b: Uint8Array): WavInfo | null {
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const tag = (o: number) => String.fromCharCode(...Array.from(b.subarray(o, o + 4)));
+  if (b.length < 44 || tag(0) !== 'RIFF' || tag(8) !== 'WAVE') return null;
+  let o = 12;
+  let fmt: { channels: number; sampleRate: number; bits: number } | null = null;
+  while (o + 8 <= b.length) {
+    const id = tag(o);
+    const size = v.getUint32(o + 4, true);
+    if (id === 'fmt ' && o + 24 <= b.length) {
+      fmt = { channels: v.getUint16(o + 10, true), sampleRate: v.getUint32(o + 12, true), bits: v.getUint16(o + 22, true) };
+    } else if (id === 'data') {
+      const bitDepth: BitDepth | null = fmt?.bits === 32 ? 'float32' : fmt?.bits === 24 ? 'pcm24' : fmt?.bits === 16 ? 'pcm16' : null;
+      if (!fmt || !bitDepth || !fmt.channels) return null;
+      return {
+        channels: fmt.channels,
+        sampleRate: fmt.sampleRate,
+        bitDepth,
+        dataOffset: o + 8,
+        dataBytes: size,
+        blockAlign: fmt.channels * bytesPerSample(bitDepth),
+      };
+    }
+    o += 8 + size + (size & 1);
+  }
+  return null;
+}

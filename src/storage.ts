@@ -70,3 +70,7 @@ export function deleteRecording(id: string): Promise<unknown> {
 export async function discardChunks(id: string): Promise<void> {
   await run('chunks', 'readwrite', (s) => s.delete(range(id))).catch(() => {});
 }
+
+export function saveRecording(rec: SavedRecording): Promise<unknown> {
+  return run('recordings', 'readwrite', (s) => s.put(rec));
+}
